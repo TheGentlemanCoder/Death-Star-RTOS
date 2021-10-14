@@ -1,5 +1,8 @@
 #include "TM4C123GH6PM.h"
 #include "tm4c123gh6pm_def.h"
+#include "main_thread_one.c"
+#include "main_thread_two.c"
+#include "main_thread_three.c"
 
 /* #define NVIC_ST_CTRL_R          (*((volatile uint32_t *)0xE000E010))
 #define NVIC_ST_CTRL_CLK_SRC    0x00000004  // Clock Source
@@ -31,11 +34,25 @@ typedef struct tcb tcbType;
 tcbType tcbs[NUMTHREADS];
 tcbType *RunPt;
 int32_t Stacks[NUMTHREADS][STACKSIZE];
+int32_t GBR;
 
-// new initalizations
-int32_t Lost =0;
-int32_t Send =0;
-int32_t Mail;
+void PortFD_Init(){
+ //Setting up RGB output
+	SYSCTL->RCGCGPIO |= 0x28;                   // initialize clock for port F and D 
+	while ((SYSCTL->PRGPIO & 0x28) != 0x28) {}; // wait until ready
+	GPIOF->PCTL &= ~0x0000FFF0;     // configure port PF1-PF3 as GPIO
+	GPIOF->AMSEL &= ~0x0E;          // disable analog mode PF1-PF3
+	GPIOF->AFSEL &= ~0x0E;          // disable alternative functions PF1-PF3
+	GPIOF->DIR |= 0x0E;             // set pins PF0-PF3 as outputs	
+	GPIOF->DEN |= 0x0E;             // enable ports PF1-PF3
+	//Setting up DIP switch input
+	GPIOD->PCTL &= ~0x0000FFFF;     // configure port D as GPIO
+	GPIOD->AMSEL &= ~0x0F;          // disable analog mode PD0-PD3
+	GPIOD->AFSEL &= ~0x0F;          // disable alternative functions PD0-PD3
+	GPIOD->DIR &= ~0x0F;             // set pins PD0-PD3 as outputs	
+	GPIOD->DEN |= 0x0F;             // enable port PD0-PD3
+}
+
 
 // ******** OS_Init ************
 // initialize operating system, disable interrupts until OS_Launch
@@ -48,6 +65,7 @@ void OS_Init(void){
   NVIC_ST_CTRL_R = 0;         // disable SysTick during setup
   NVIC_ST_CURRENT_R = 0;      // any write to current clears it
   NVIC_SYS_PRI3_R =(NVIC_SYS_PRI3_R&0x00FFFFFF)|0xE0000000; // priority 7
+	PortFD_Init(); //Setting up RGB output
 }
 
 void SetInitialStack(int i){
@@ -106,7 +124,6 @@ void Clock_Init(void){
 }
 
 //new code
-
 void OS_Wait(uint32_t *S){
 OS_DisableInterrupts();
 while((*S)==0){
@@ -121,16 +138,13 @@ OS_DisableInterrupts();
 (*S)=(*S)+1;
 OS_EnableInterrupts();
 }
-void SendMail(uint32_t data){
- Mail=data;
-if(Send){
-Lost++;
+
+#define TIMESLICE               32000
+
+int main(void){
+  OS_Init();           // initialize, disable interrupts, 16 MHz
+  OS_AddThreads(&Main_Thread_One, &Main_Thread_Two(GBR), &Main_Thread_Three);
+  OS_Launch(TIMESLICE); // doesn't return, interrupts enabled in here
+  return 0;             // this never executes
 }
-else{
-OS_Signal(&Send);
-}
-}
-uint32_t RecvMail(void){
- OS_Wait(&Send);
-return Mail;
-}
+
