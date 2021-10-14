@@ -26,16 +26,13 @@ void StartOS(void);
 struct tcb{
   int32_t *sp;       // pointer to stack (valid for threads not running
   struct tcb *next;  // linked-list pointer
+	int32_t* blocked;	// semaphore blocking the thread (not blocked if null)
+	int32_t sleep;			// timeslices left to sleep (not asleep if 0)
 };
 typedef struct tcb tcbType;
 tcbType tcbs[NUMTHREADS];
 tcbType *RunPt;
 int32_t Stacks[NUMTHREADS][STACKSIZE];
-
-// new initalizations
-int32_t Lost =0;
-int32_t Send =0;
-int32_t Mail;
 
 // ******** OS_Init ************
 // initialize operating system, disable interrupts until OS_Launch
@@ -107,30 +104,72 @@ void Clock_Init(void){
 
 //new code
 
-void OS_Wait(uint32_t *S){
-OS_DisableInterrupts();
-while((*S)==0){
-OS_EnableInterrupts();
-OS_DisableInterrupts();
+void Scheduler(void) {
+	tcbType* pt;
+	pt = RunPt;
+	if (NVIC_ST_CTRL_R & 0x10000) {
+		// full thread timeslice has passed
+		while (pt->next != RunPt) {
+			pt = pt->next;
+			if (pt->sleep) {
+				pt->sleep = (pt->sleep) - 1;
+			}
+		}
+	}
+	
+	RunPt = RunPt->next; // skip at least one
+	while((RunPt->sleep) || (RunPt->blocked)) {
+		RunPt = RunPt->next; // find one not sleeping and not blocked
+	}
 }
-(*S)=(*S)-1;
-OS_EnableInterrupts();
+
+void OS_Suspend(void) {
+	NVIC_ST_CURRENT_R = 0;	// reset counter
+	NVIC_INT_CTRL_R |= 0x04000000; // trigger SysTick
 }
-void OS_Signal(uint32_t *S){
-OS_DisableInterrupts();
-(*S)=(*S)+1;
-OS_EnableInterrupts();
+
+void OS_Wait(int32_t *s){
+	OS_DisableInterrupts();
+	(*s) = (*s) - 1;
+	if ((*s) < 0) {
+		RunPt->blocked = s;
+		OS_EnableInterrupts();
+		OS_Suspend();
+	}
+	
+	OS_EnableInterrupts();
 }
-void SendMail(uint32_t data){
- Mail=data;
-if(Send){
-Lost++;
+void OS_Signal(int32_t *s){
+	tcbType* pt;
+	OS_DisableInterrupts();
+	(*s) = (*s) + 1;
+	if ((*s) <= 0) {
+		pt = RunPt->next;
+		
+		// search for thread blocked on this semaphore
+		while (pt->blocked != s) {
+			pt = pt->next;
+		}
+		
+		// wakeup this thread
+		pt->blocked = 0;
+	}
+	
+	OS_EnableInterrupts();
 }
-else{
-OS_Signal(&Send);
+
+void OS_Sleep(uint32_t SleepCtr) {
+	// SleepCtr is measured in timeslices
+	RunPt->sleep = SleepCtr;
+	OS_Suspend();
 }
+
+void OS_InitSemaphore(uint32_t *s, int32_t initialValue) {
+	OS_DisableInterrupts();
+	*s = initialValue;
+	OS_EnableInterrupts();
 }
-uint32_t RecvMail(void){
- OS_Wait(&Send);
-return Mail;
+
+int main(void) {
+	
 }
