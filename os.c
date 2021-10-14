@@ -144,7 +144,6 @@ void Scheduler(void) {
 	while((RunPt->sleep) || (RunPt->blocked)) {
 		RunPt = RunPt->next; // find one not sleeping and not blocked
 	}
-}
 
 void OS_Suspend(void) {
 	NVIC_ST_CURRENT_R = 0;	// reset counter
