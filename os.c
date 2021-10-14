@@ -152,6 +152,7 @@ void OS_Wait(int32_t *s){
 	
 	OS_EnableInterrupts();
 }
+
 void OS_Signal(int32_t *s){
 	tcbType* pt;
 	OS_DisableInterrupts();

@@ -389,6 +389,31 @@
               <FileType>2</FileType>
               <FilePath>.\osasm_V2.s</FilePath>
             </File>
+            <File>
+              <FileName>colorshow.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\colorshow.c</FilePath>
+            </File>
+            <File>
+              <FileName>main_thread_one.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\main_thread_one.c</FilePath>
+            </File>
+            <File>
+              <FileName>main_thread_three.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\main_thread_three.c</FilePath>
+            </File>
+            <File>
+              <FileName>main_thread_two.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\main_thread_two.c</FilePath>
+            </File>
+            <File>
+              <FileName>os.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\os.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
