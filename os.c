@@ -32,10 +32,17 @@ tcbType tcbs[NUMTHREADS];
 tcbType *RunPt;
 int32_t Stacks[NUMTHREADS][STACKSIZE];
 
-// new initalizations
-int32_t Lost =0;
-int32_t Send =0;
-int32_t Mail;
+void PortF_Init(){
+ //Setting up RGB output
+	SYSCTL->RCGCGPIO |= 0x20;                   // initialize clock for port F    
+	while ((SYSCTL->PRGPIO & 0x28) != 0x28) {}; // wait until ready
+	GPIOF->PCTL &= ~0x000FFFF0;     // configure port F as GPIO
+	GPIOF->AMSEL &= ~0x0E;          // disable analog mode PF1-PF3
+	GPIOF->AFSEL &= ~0x0E;          // disable alternative functions PF1-PF3
+	GPIOF->DIR |= 0x0E;             // set pins PF0-PF3 as outputs	
+	GPIOF->DIR |= 0x0E;             // set pins PF0-PF4 as outputs
+	GPIOF->DEN |= 0x0E;             // enable port F
+}
 
 // ******** OS_Init ************
 // initialize operating system, disable interrupts until OS_Launch
@@ -48,6 +55,7 @@ void OS_Init(void){
   NVIC_ST_CTRL_R = 0;         // disable SysTick during setup
   NVIC_ST_CURRENT_R = 0;      // any write to current clears it
   NVIC_SYS_PRI3_R =(NVIC_SYS_PRI3_R&0x00FFFFFF)|0xE0000000; // priority 7
+	PortF_Init(); //Setting up RGB output
 }
 
 void SetInitialStack(int i){
@@ -120,17 +128,4 @@ void OS_Signal(uint32_t *S){
 OS_DisableInterrupts();
 (*S)=(*S)+1;
 OS_EnableInterrupts();
-}
-void SendMail(uint32_t data){
- Mail=data;
-if(Send){
-Lost++;
-}
-else{
-OS_Signal(&Send);
-}
-}
-uint32_t RecvMail(void){
- OS_Wait(&Send);
-return Mail;
 }
